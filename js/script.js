@@ -1,26 +1,33 @@
 (function(){
 
-
     var _photos;
     var _ul;
     var _allowDownload;
-    var _scrollDuration = 750;
+    var _scrollDuration = 325;
     var _allowScrolling = true;
+    var _photosPerPage = "50";
+    var _nextPage;
+    var _selectPhotoIter = 0;
+    var _countOfPhotosInRow = 5;
 
      window.onload = function(){
        loadPhotos();
        addOnWheelListener();
+      
       };
 
-
      function loadPhotos(){
-
-      _ul =  document.getElementById("og-grid");
+      //error while trying to load less then 50 photos per page
+      // if link doesn't work https://www.flickr.com/services/api/explore/flickr.photos.getRecent - can generate new one here
+      var queryString = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=d2630580e5a4cb7a7cf5e14a4315a099&per_page="+_photosPerPage+"&format=json&nojsoncallback=1&api_sig=125c9754ab76c4b3069b4f5d1d117b39"
+     
+      if(!_ul)
+       _ul =  document.getElementById("og-grid");
+     
       _allowDownload = true;
-
       var xhr = new XMLHttpRequest();
-
-       xhr.open('POST','https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=9e3ec094cddaf11bf7052b997c5cd7b1&per_page=50&format=json&nojsoncallback=1&api_sig=3f7b330e35d8b4310104a4efb1446b57', true);
+    
+       xhr.open('POST',queryString, true);
        xhr.send();
 
         xhr.onreadystatechange = function() { 
@@ -28,15 +35,17 @@
             if (this.responseText){
                 var response = JSON.parse(xhr.responseText);
                 _photos = response.photos.photo;
-                makeList();
                 _allowDownload = false;
+                makeList();
+                _nextPage = 20; //this amount can be changed to any one else
             }
            }
          }
        };
 
-     function makeList(){
-       for(var i = 0; i<_photos.length; i++){
+     function makeList(loadMoreIter){
+      var to = _nextPage ? _nextPage : _photos.length;
+       for(var i = 0; i<to; i++){
             var a  = document.createElement("a");
             var li = document.createElement("li");
             var img = document.createElement("img");
@@ -45,7 +54,9 @@
             li.appendChild(a);
             _ul.appendChild(li);
         }
-       selectElement(_ul.children[0]);
+
+          if(to == _photos.length) // if it is innitial entry
+           selectElement(_ul.children[_selectPhotoIter]);
      };
 
       function selectElement(li){
@@ -61,53 +72,61 @@
        var shift;
        var keyCode = e.keyCode || e.which,
         arrow = {left: 37, up: 38, right: 39, down: 40 };
-                            //I undersand that is bad for adaptive design but..
+                            //that is bad for adaptive design but..
           switch (keyCode) { // > 'В ряду должно быть по 5 фото'
             case arrow.left: // that's why :)
               shift = -1;
             break;
             case arrow.up:
-              shift = -5;
+              shift = -_countOfPhotosInRow;
             break;
             case arrow.right:
               shift = 1;
             break;
             case arrow.down:
-              shift = 5;
+              shift = _countOfPhotosInRow;
             break;
           }
-          
-       moveFocus(shift);
+          moveFocus(shift);
       };
 
-
        function moveFocus(shift){
+         if(!_allowScrolling) return;
           for( var i = 0; i < _ul.children.length; i ++) {
               if( _ul.children[i].classList.value == 'selected'){
-                 if( ( i + shift >= 0 ) && (shift + i <= _ul.children.length-1 ) ){
+                 if( ( i + shift >= 0 ) && (shift + i <= _ul.children.length-1 ) ){// borders
                   unselectElement();
-                  if(Math.abs(shift) == 5 || (Math.abs(shift) != 5 && shift > 0 && (i + shift) % 5 == 0) // for right scrolling
-                                          || (Math.abs(shift) != 5 && shift < 0 && (i + shift + 1 ) % 5 == 0)){ 
-                   doScrolling(_ul.children[i+shift], _scrollDuration, shift);
-                 }
-                 _ul.children[i+shift].classList.add("selected");
+                  // for right scrolling up and down
+                  if( Math.abs(shift) == _countOfPhotosInRow || 
+                    (Math.abs(shift) != _countOfPhotosInRow && shift > 0 && (i + shift) % _countOfPhotosInRow == 0) 
+                    || (Math.abs(shift) != _countOfPhotosInRow && shift < 0 && (i + shift + 1 ) % _countOfPhotosInRow == 0)){ 
+                     _allowScrolling = false; // preventing multiple scrolling
+                      setTimeout(function() { 
+                      doScrolling(_ul.children[i+shift], _scrollDuration, shift);
+                      _ul.children[i+shift].classList.add("selected");  
+                      _allowScrolling = true;
+                     }, 100);
+                  }else{
+                       _ul.children[i+shift].classList.add("selected");
+                  }
+                   if( i + shift + _countOfPhotosInRow >= _ul.children.length ){ // if we close to new page
+                     clearMemory(_nextPage);
+                      setTimeout(function() {
+                         loadPhotos();
+                      }, 200); 
+                  }
                  return;
-              }
+               }
            }
          }
       };
-      
-      function MouseWheelHandler(e) {
-        if(!_allowScrolling) return;
 
-          _allowScrolling = false;
+      function MouseWheelHandler(e) {
           var e = window.event || e; 
-          var delta = Math.max(-5, Math.min(5, (e.wheelDelta || -e.detail)));
+          var delta = Math.max(-_countOfPhotosInRow, Math.min(_countOfPhotosInRow, (e.wheelDelta || -e.detail)));
           setTimeout(function() { 
-               moveFocus(-delta);
-              _allowScrolling = true;
+               moveFocus(-delta);         
               }, _scrollDuration);
-          console.log(delta);
           return false;
       };
 
@@ -118,7 +137,7 @@
             // Firefox
             _ul.addEventListener("DOMMouseScroll", MouseWheelHandler, false);
          }
-        // IE 6/7/8
+            // IE 6/7/8
         else{
             _ul.attachEvent("onmousewheel", MouseWheelHandler);
          }
@@ -145,6 +164,16 @@
               window.requestAnimationFrame(step);
             }
           });
+       };
+
+       function clearMemory(to){
+        setTimeout(function() {
+           var i = 0;
+           while(i<to){
+             _ul.removeChild(_ul.children[0]); 
+             i++;
+            }
+        }, 100);
        };
 })();
 
