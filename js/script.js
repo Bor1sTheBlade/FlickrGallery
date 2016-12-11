@@ -13,13 +13,12 @@
      window.onload = function(){
        loadPhotos();
        addOnWheelListener();
-      
       };
 
      function loadPhotos(){
       //error while trying to load less then 50 photos per page
       // if link doesn't work https://www.flickr.com/services/api/explore/flickr.photos.getRecent - can generate new one here
-      var queryString = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=d2630580e5a4cb7a7cf5e14a4315a099&per_page="+_photosPerPage+"&format=json&nojsoncallback=1&api_sig=125c9754ab76c4b3069b4f5d1d117b39"
+      var queryString = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=32fed91d6e3372590c3b47b7f182fcce&per_page="+ _photosPerPage +"&format=json&nojsoncallback=1&api_sig=62f5da8f3ccfe57a4e0b7fb3af501afe"
      
       if(!_ul)
        _ul =  document.getElementById("og-grid");
@@ -54,7 +53,6 @@
             li.appendChild(a);
             _ul.appendChild(li);
         }
-
           if(to == _photos.length) // if it is innitial entry
            selectElement(_ul.children[_selectPhotoIter]);
      };
